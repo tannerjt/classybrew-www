@@ -1,0 +1,265 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Leaflet Layers Control Example</title>
+	<meta charset="utf-8" />
+
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+	<link rel="stylesheet" href="./bower_components/leaflet/dist/leaflet.css" />
+
+	<style>
+		html, body{
+			width: 100%;
+			height: 100%;
+			margin: 0;
+			padding: 0;
+		}
+		div {
+			margin : 0;
+			padding : 0;
+		}
+		#map {
+			width: 50%;
+			height: 100%;
+			float: left;
+		}
+
+		.info {
+			padding: 6px 8px;
+			font: 14px/16px Arial, Helvetica, sans-serif;
+			background: white;
+			background: rgba(255,255,255,0.8);
+			box-shadow: 0 0 15px rgba(0,0,0,0.2);
+			border-radius: 5px;
+		}
+		.info h4 {
+			margin: 0 0 5px;
+			color: #777;
+		}
+
+		.legend {
+			text-align: left;
+			line-height: 18px;
+			color: #555;
+		}
+		.legend i {
+			width: 18px;
+			height: 18px;
+			float: left;
+			margin-right: 8px;
+			opacity: 0.7;
+		}
+		#options-method {
+			width : 50%;
+			float : right;
+		}
+		.litem {
+			display : inline-block;
+			padding-right : 7px;
+		}
+		.litem::after {
+			content : "";
+		}
+		ul {
+			margin : 0;
+			padding: 5px 0;
+		}
+		.select-head {
+			font-size : 18px;
+			margin : 0;
+			text-decoration: underline;
+		}
+		h2 {
+			margin : 0;
+			padding : 0;
+		}
+	</style>
+</head>
+<body>
+	<div id="map"></div>
+	<div id="options-method">
+		<h2>ClassBrew Example</h2>
+		<p>Created By: <a href="http://tannergeo.com" target="_blank">TannerGeo</a><br>
+		Hosed On: <a href="https://github.com/tannerjt/classybrew" target="_blank">GitHub</a></p>
+		<div id="methods"></div>
+		<hr>
+		<div id="colors"></div>
+		<hr>
+		<div id="classes"></div>
+	</div>
+	<div id=""></div>
+	<div id="docs">
+		
+	</div>
+	<script src="./bower_components/jquery/dist/jquery.min.js"></script>
+	<script src="./js/classybrew.min.js"></script>
+	<script src="./bower_components/leaflet/dist/leaflet.js"></script>
+
+	<script type="text/javascript" src="storm_events.js"></script>
+	<script type="text/javascript">
+
+		var map = L.map('map').setView([37.8, -96], 4);
+
+		L.tileLayer('https://{s}.tiles.mapbox.com/v3/{id}/{z}/{x}/{y}.png', {
+			maxZoom: 18,
+			attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
+				'<a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
+				'Imagery © <a href="http://mapbox.com">Mapbox</a>',
+			id: 'examples.map-20v6611k'
+		}).addTo(map);
+
+
+		// control that shows state info on hover
+		var info = L.control();
+
+		info.onAdd = function (map) {
+			this._div = L.DomUtil.create('div', 'info');
+			this.update();
+			return this._div;
+		};
+
+		info.update = function (props) {
+			this._div.innerHTML = '<h4>Visualizing Percentage of Storms Resulting in Injuries/Deaths by State (1996 - 2014)</h4>' +  (props ?
+				'<b>' + props.NAME + '</b> - ' + props.PERCENT + '%<br /><br /><b>Number of Storms Resulting in Injury/Death:</b> ' + parseInt(props.INJURIES_D) + '<br /> <b>Total Number of Storms:</b> ' + parseInt(props.TOTAL_STOR)
+				: 'Hover over a state');
+		};
+
+		info.addTo(map);
+
+		function style(feature) {
+			return {
+				weight: 2,
+				opacity: 1,
+				color: 'white',
+				dashArray: '3',
+				fillOpacity: 0.7,
+				fillColor: brew.getColorInRange(feature.properties.PERCENT)
+			};
+		}
+
+		function highlightFeature(e) {
+			var layer = e.target;
+
+			layer.setStyle({
+				weight: 5,
+				color: '#666',
+				dashArray: '',
+				fillOpacity: 0.7
+			});
+
+			if (!L.Browser.ie && !L.Browser.opera) {
+				layer.bringToFront();
+			}
+
+			info.update(layer.feature.properties);
+		}
+
+		var geojson;
+
+		function resetHighlight(e) {
+			geojson.resetStyle(e.target);
+			info.update();
+		}
+
+		function zoomToFeature(e) {
+			map.fitBounds(e.target.getBounds());
+		}
+
+		function onEachFeature(feature, layer) {
+			layer.on({
+				mouseover: highlightFeature,
+				mouseout: resetHighlight,
+				click: zoomToFeature
+			});
+		}
+
+		var brew = new classyBrew();
+		var values = [];
+		for (var i = 0; i < storm_events.features.length; i++){
+			if (storm_events.features[i].properties['PERCENT'] == null) continue;
+			values.push(storm_events.features[i].properties['PERCENT']);
+		}
+		brew.setSeries(values);
+		brew.setNumClasses(6);
+		brew.setColorCode("Blues");
+		brew.classify('equal_interval');
+		geojson = L.geoJson(storm_events, {
+			style: style,
+			onEachFeature: onEachFeature
+		}).addTo(map);
+
+		map.attributionControl.addAttribution('Storm data &copy; <a href="http://www.ncdc.noaa.gov/stormevents/ftp.jsp">NOAA</a>');
+
+
+		var legend = L.control({position: 'bottomright'});
+
+		legend.onAdd = function (map) {
+			var div = L.DomUtil.create('div', 'info legend'),
+				percents = brew.getBreaks(),
+				labels = [],
+				from, to;
+
+			for (var i = 0; i < percents.length; i++) {
+				from = percents[i];
+				to = percents[i + 1];
+				if(to) {
+				labels.push(
+					'<i style="background:' + brew.getColorInRange(from) + '"></i> ' +
+					from.toFixed(2) + '% &ndash; ' + to.toFixed(2) + '%');
+				}
+			}
+
+			div.innerHTML = labels.join('<br>');
+			return div;
+		};
+
+		legend.addTo(map);
+
+		// interactive color changes
+		$("#colors").html(function () {
+			var colors = brew.getColorCodesByType();
+			var html;
+			html = "<h2 class='select-head'>Change Color Palette</h2>"
+			$.each(colors, function (type, codes) {
+				html += "<b>" + type + "</b>";
+				html += "<ul>";
+				for(var i = 0; i < codes.length; i++) {
+					html += "<li class='litem'><a href='#' class='select change-color'>" + codes[i] + " </a></li>";
+				}
+				html += "</ul>";
+			});
+			return html;
+		});
+		// interactive methods changes
+		$("#methods").html(function () {
+			var methods = brew.getClassificationMethods();
+			var html;
+			html = "<h2 class='select-head'>Change Classification Method</h2>";
+			html += "<ul>";
+			for(var i = 0; i < methods.length; i++) {
+				html += "<li class='litem'><a href='#' class='select change-method'>" + methods[i] + "</a></li>";
+			}
+			html += "</ul>";
+			return html;
+		});
+		// register events
+		$(".change-color").on('click', function (evt) {
+			evt.preventDefault();
+			brew.setColorCode($(evt.target).text().trim());
+			refreshMap();
+		});
+		$(".change-method").on('click', function (evt) {
+			evt.preventDefault();
+			brew.classify($(evt.target).text().trim());
+			refreshMap();
+		});
+		function refreshMap() {
+			geojson.setStyle(style);
+			legend.removeFrom(map);
+			legend.addTo(map);
+		}
+	</script>
+</body>
+</html>
