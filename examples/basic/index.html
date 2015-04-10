@@ -90,9 +90,6 @@
 			</div> <!-- end col -->
 			<div class="col-md-6">
 				<div id="options-method">
-					<h2>ClassBrew Example</h2>
-					<p>Created By: <a href="http://tannergeo.com" target="_blank">TannerGeo</a><br>
-					Library Available on: <a href="https://github.com/tannerjt/classybrew" target="_blank">GitHub</a></p>
 					<div id="methods"></div>
 					<hr>
 					<div id="colors"></div>
@@ -238,12 +235,10 @@
 			var html;
 			html = "<h2 class='select-head'>Change Color Palette</h2>"
 			$.each(colors, function (type, codes) {
-				html += "<b>" + type + "</b>";
-				html += "<ul>";
+				html += "<div><b>" + type + "</b></div>";
 				for(var i = 0; i < codes.length; i++) {
-					html += "<li class='litem'><a href='#' class='select change-color'>" + codes[i] + " </a></li>";
+					html += '<button type="button" class="btn btn-default btn-sm select change-color">' + codes[i] + "</button>";
 				}
-				html += "</ul>";
 			});
 			return html;
 		});
@@ -252,11 +247,9 @@
 			var methods = brew.getClassificationMethods();
 			var html;
 			html = "<h2 class='select-head'>Change Classification Method</h2>";
-			html += "<ul>";
 			for(var i = 0; i < methods.length; i++) {
-				html += "<li class='litem'><a href='#' class='select change-method'>" + methods[i] + "</a></li>";
+				html += '<button type="button" class="btn btn-default btn-sm select change-method">' + methods[i] + "</button>";
 			}
-			html += "</ul>";
 			return html;
 		});
 		// register events
