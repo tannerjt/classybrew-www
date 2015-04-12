@@ -8,6 +8,8 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 	<link rel="stylesheet" href="./bower_components/bootstrap/dist/css/bootstrap.min.css">
+	<link rel="stylesheet" type="text/css" href="./bower_components/SyntaxHighlighter/styles/shCore.css">
+	<link rel="stylesheet" type="text/css" href="./bower_components/SyntaxHighlighter/styles/shThemeMidnight.css">
 	<link rel="stylesheet" href="./bower_components/leaflet/dist/leaflet.css" />
 	<style>
 		html, body {
@@ -22,7 +24,7 @@
 		}
 		#map {
 			width: 100%;
-			height: 350px;
+			height: 300px;
 		}
 
 		.info {
@@ -85,7 +87,7 @@
 	  <div class="container-fluid">
 	    <div class="navbar-header">
 	      <a class="navbar-brand" href="#">
-	        ClassyBrew
+	        ClassyBrew - data classification and color theory
 	      </a>
 	    </div>
 	  </div>
@@ -94,6 +96,67 @@
 		<div class="row">
 			<div class="col-md-6">
 				<div id="map"></div>
+				<h3>Classify Data with ClassyBrew</h3>
+				<div id="sh"></div>
+				<h3>Leaflet Code to Create Map</h3>
+				<div><a href="./storm_events.js" target="_blank">View storm_events GeoJSON Used in this Example</a></div>
+				<pre class="brush: js">
+// create leaflet map
+var map = L.map('map').setView([37.8, -96], 3);
+
+// Add basemap
+L.tileLayer('https://{s}.tiles.mapbox.com/v3/{id}/{z}/{x}/{y}.png', {
+	maxZoom: 18,
+	attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
+		'<a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
+		'Imagery © <a href="http://mapbox.com">Mapbox</a>',
+	id: 'examples.map-20v6611k'
+}).addTo(map);
+
+// create classybrew object
+var brew = new classyBrew();
+
+// pass values from your geojson object into an empty array
+// see link above to view geojson used in this example
+var values = [];
+for (var i = 0; i < storm_events.features.length; i++){
+	if (storm_events.features[i].properties['PERCENT'] == null) continue;
+	values.push(storm_events.features[i].properties['PERCENT']);
+}
+
+// pass array to our classybrew series
+brew.setSeries(values);
+
+// define number of classes
+brew.setNumClasses(6);
+
+// set color ramp code
+brew.setColorCode("Blues");
+
+// classify by passing in statistical method
+// i.e. equal_interval, jenks, quantile
+brew.classify("equal_interval");
+
+// style function to return
+// fill color based on brew.getColorInRange() method
+function style(feature) {
+	return {
+		weight: 2,
+		opacity: 1,
+		color: 'white',
+		dashArray: '3',
+		fillOpacity: 0.7,
+		fillColor: brew.getColorInRange(feature.properties.PERCENT)
+	}
+}
+		
+
+// add geojson to map
+// calling the style method on each feature
+geojson = L.geoJson(storm_events, {
+	style: style
+}).addTo(map);
+				</pre>
 			</div> <!-- end col -->
 			<div class="col-md-6">
 				<div id="options-method">
@@ -103,20 +166,25 @@
 					<hr>
 					<div id="classes"></div>
 				</div>
-				<div id=""></div>
-				<div id="docs"> </div>
+				<div id="docs">
+				<h3>About</h3>
+				<p>ClassyBrew was created by <a href="http://tannergeo.com/" target="_blank">TannerGeo</a> as an Open Source solution to bulding thematic maps and graphics.  It uses proven statistical methods and color theory palettes to help you represent your data faster and more accurately.  If you find it helpful, please fork this <a href="https://github.com/tannerjt/classybrew" target="_blank">repo</a> and help improve it.</p>
+				</div>
 			</div> <!-- end col -->
 		</div>
 		</div> <!-- end main row -->
  	</div> <!-- end container -->
+ 	<script src="./bower_components/SyntaxHighlighter/scripts/xRegExp.js"></script>
+	<script src="./bower_components/SyntaxHighlighter/scripts/shCore.js"></script>
+	<script src="./bower_components/SyntaxHighlighter/scripts/shBrushJScript.js"></script>
 	<script src="./bower_components/jquery/dist/jquery.min.js"></script>
 	<script src="./js/classybrew.min.js"></script>
 	<script src="./bower_components/leaflet/dist/leaflet.js"></script>
-
 	<script type="text/javascript" src="storm_events.js"></script>
 	<script type="text/javascript">
 
 		var map = L.map('map').setView([37.8, -96], 3);
+		var method = "equal_interval";
 
 		L.tileLayer('https://{s}.tiles.mapbox.com/v3/{id}/{z}/{x}/{y}.png', {
 			maxZoom: 18,
@@ -203,7 +271,7 @@
 		brew.setSeries(values);
 		brew.setNumClasses(6);
 		brew.setColorCode("Blues");
-		brew.classify('equal_interval');
+		brew.classify(method);
 		geojson = L.geoJson(storm_events, {
 			style: style,
 			onEachFeature: onEachFeature
@@ -241,6 +309,7 @@
 			var colors = brew.getColorCodesByType();
 			var html;
 			html = "<h2 class='select-head'>Change Color Palette</h2>"
+			html += "<i>sequential (seq), diverging (div), qualitative (qual)</i><br>";
 			$.each(colors, function (type, codes) {
 				html += "<div><b>" + type + "</b></div>";
 				for(var i = 0; i < codes.length; i++) {
@@ -266,15 +335,36 @@
 			refreshMap();
 		});
 		$(".change-method").on('click', function (evt) {
+			method = $(evt.target).text().trim();
 			evt.preventDefault();
-			brew.classify($(evt.target).text().trim());
+			brew.classify(method);
 			refreshMap();
 		});
+
 		function refreshMap() {
 			geojson.setStyle(style);
 			legend.removeFrom(map);
 			legend.addTo(map);
+			updateSyntax();
 		}
+
+		function updateSyntax() {
+			// syntax highlight
+			var pre = $("<pre/>", {
+				class : "brush: js"
+			});
+
+			var js = "var brew = new classyBrew(); // create brew object\n" + 
+					 "brew.setSeries([Array...]); // define data to classify\n" +
+					 "brew.setNumClasses(" + brew.getNumClasses() + "); // set number of classes\n" +
+					 "brew.setColorCode('" + brew.getColorCode() + "'); // set color code\n" +
+					 "brew.classify('" + method + "'); // classify data"
+			pre.append(js);
+			$("#sh").html(pre);
+			SyntaxHighlighter.all();
+			SyntaxHighlighter.highlight();
+		}
+		updateSyntax();
 	</script>
 	<script type="text/javascript" src="./bower_components/bootstrap/dist/js/bootstrap.min.js"></script>
 	<script>
